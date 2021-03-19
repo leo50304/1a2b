@@ -56,7 +56,7 @@ void startGame()
 
     while (possibles.size() > 1)
     {
-        cout << ++turn << "th guess" << endl;
+        cout << ++turn << "th round" << endl;
         guessNum = getBestNumber();
         cout << "suggestion: " << setfill('0') << setw(4) << guessNum << endl
              << "Input feedback: ";
@@ -194,15 +194,14 @@ void startTest()
     int ans, firstGuess, round;
     for (int i = 0; i < TEST_ROUND; i++)
     {
-        while (checkRepeat(ans = dice()))
-            ;
-        while (checkRepeat(firstGuess = dice()))
-            ;
+        while (checkRepeat(ans = dice()));
+        while (checkRepeat(firstGuess = dice()));
         round = testGame(ans, firstGuess);
         count += round;
-        cout << "(ans, firstGuess, round)= (" << setfill('0') << setw(4) << ans << ", " << setfill('0') << setw(4) << firstGuess << ", " << round << ")" << endl;
+        cout << "(Ans, FirstGuess, Round) = (" << setfill('0') << setw(4) << ans << ", " << setfill('0') << setw(4) << firstGuess << ", " << round << ")" << endl;
     }
-    cout << "average round: " << (double)count / (double)TEST_ROUND << endl;
+    cout << "-------------------------------------------" << endl
+         << "Average: " << (double)count / (double)TEST_ROUND << " rounds" << endl;
 }
 
 int testGame(int ans, int guessNum)
