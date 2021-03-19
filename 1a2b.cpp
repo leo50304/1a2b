@@ -50,7 +50,7 @@ void startGame()
     cin >> type;
 
     getPossibleAns(guessNum, type);
-    cout << "Remain possibles: " << possibles.size() << endl //1234
+    cout << "Remain possibles: " << possibles.size() << endl
          << "-----------------------"
          << endl;
 
@@ -61,16 +61,11 @@ void startGame()
         cout << "suggestion: " << setfill('0') << setw(4) << guessNum << endl
              << "Input feedback: ";
         cin >> type;
-
         filterPossiblesAns(guessNum, type);
         cout << "Remain possibles: " << possibles.size() << endl
              << "-----------------------"
              << endl;
-
-        // if (possibles.size() == 1)
-        //     break;
     }
-
     cout << "Ans: " << setfill('0') << setw(4) << possibles[0] << endl;
     possibles.clear();
 }
@@ -94,7 +89,6 @@ int getType(int ans, int num)
             {
                 if (i == j)
                     type += 10;
-
                 else
                     type += 1;
                 break;
@@ -109,7 +103,6 @@ bool checkRepeat(int num)
         digits[0]++;
 
     while (num)
-    {
         if (digits[num % 10] == 1)
             return true;
         else
@@ -117,7 +110,6 @@ bool checkRepeat(int num)
             digits[num % 10]++;
             num /= 10;
         }
-    }
     return false;
 }
 
@@ -135,23 +127,16 @@ double getVariance(int set[])
     double mean;
     double sum = 0;
     for (int i = 0; i < 14; i++)
-    {
         sum += set[TYPES[i]];
-    }
     mean = sum / 14;
     sum = 0;
     for (int i = 0; i < 14; i++)
-    {
         sum += (set[TYPES[i]] - mean) * (set[TYPES[i]] - mean);
-    }
     return sum / 14;
 }
 
 int getBestNumber()
 {
-    if (possibles.size() < 3)
-        return possibles[0];
-
     double minVariance = 9999999;
     double variance;
     int bestNumber = 9999;
@@ -162,9 +147,7 @@ int getBestNumber()
             continue;
         int typeCounts[41] = {0};
         for (vector<int>::iterator it = possibles.begin(); it != possibles.end(); it++)
-        {
             typeCounts[getType(i, *it)]++;
-        }
         variance = getVariance(typeCounts);
         if (variance < minVariance)
         {
@@ -220,5 +203,5 @@ int testGame(int ans, int guessNum)
             break;
     }
     possibles.clear();
-    return turn;
+    return turn+1;
 }
