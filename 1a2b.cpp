@@ -2,22 +2,28 @@
 /* 1st version: Excluding maximum possibles by getting minimum type variance */
 /*****************************************************************************/
 
+#include <array>
+#include <bitset>
 #include <iostream>
 #include <vector>
 #include <iomanip>
 #include <random>
 #include <functional>
+#include <limits>
 
 using namespace std;
 
-const int TYPES[14] = {0, 1, 2, 3, 4, 10, 11, 12, 13, 20, 21, 22, 30, 40};
-const int TEST_ROUND = 100;
+constexpr int numTypes = 14;
+constexpr array<int, numTypes> TYPES = {{0, 1, 2, 3, 4, 10, 11, 12, 13, 20, 21, 22, 30, 40}};
+constexpr int TEST_ROUND = 100;
+constexpr int minPossibleValue = 123;
+constexpr int maxPossibleValue = 9876;
 vector<int> possibles;
 
 int getType(int ans, int num);
-bool checkRepeat(int num);
-void getPossibleAns(int num, int type);
-double getVariance(int set[]);
+bool hasRepeatingDigits(int num);
+void initializePossibleAnswers(int num, int type);
+double getVariance(const array<int, 41>& set);
 int getBestNumber();
 void filterPossiblesAns(int guessNum, int type);
 int testGame(int ans, int init);
@@ -42,21 +48,24 @@ void startGame()
 {
     int guessNum, type;
     int turn = 1;
-    cout << "-----------------------"
-         << endl
-         << "1th guess: ";
+    cout << "-----------------------\n"
+         << "1st guess: ";
     cin >> guessNum;
     cout << "Input feedback: ";
     cin >> type;
 
-    getPossibleAns(guessNum, type);
+    initializePossibleAnswers(guessNum, type);
     cout << "Remain possibles: " << possibles.size() << endl
          << "-----------------------"
          << endl;
 
     while (possibles.size() > 1)
     {
-        cout << ++turn << "th round" << endl;
+        turn++;
+        cout << turn <<
+          (turn == 2 ? "nd" :
+          (turn == 3 ? "rd" : "th")) <<
+          " round" << endl;
         guessNum = getBestNumber();
         cout << "suggestion: " << setfill('0') << setw(4) << guessNum << endl
              << "Input feedback: ";
@@ -66,89 +75,97 @@ void startGame()
              << "-----------------------"
              << endl;
     }
-    cout << "Ans: " << setfill('0') << setw(4) << possibles[0] << endl;
+    if (possibles.size())
+        cout << "Ans: " << setfill('0') << setw(4) << possibles[0] << endl;
+    else
+        cout << "No possible answers.\n";
     possibles.clear();
 }
 
 int getType(int ans, int num)
 {
     int type = 0;
-    int ansDigits[4];
-    int numDigits[4];
-    for (int i = 0; i < 4; i++)
+    constexpr int numDigits = 4;
+    array<int, numDigits> digitsForAns;
+    array<int, numDigits> digitsForNum;
+    for (int i = 0; i < numDigits; i++)
     {
-        ansDigits[i] = ans % 10;
-        numDigits[i] = num % 10;
+        digitsForAns[i] = ans % 10;
+        digitsForNum[i] = num % 10;
         ans /= 10;
         num /= 10;
     }
 
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            if (numDigits[i] == ansDigits[j])
-            {
-                if (i == j)
-                    type += 10;
-                else
-                    type += 1;
-                break;
-            }
+    for (int i = 0; i < numDigits; i++) {
+        const int digit = digitsForNum[i];
+        const auto firstEqualIt = find(digitsForAns.begin(), digitsForAns.end(), digit);
+        if (firstEqualIt == digitsForAns.end())
+            continue;
+
+        const bool same_digit_pos = i == distance(digitsForAns.begin(), firstEqualIt);
+        type += same_digit_pos ? 10 : 1;
+    }
+
     return type;
 }
 
-bool checkRepeat(int num)
+bool hasRepeatingDigits(int num)
 {
-    int digits[10] = {0};
+    bitset<10> usedDigit;
     if (num < 1000)
-        digits[0]++;
+        usedDigit.set(0);
 
-    while (num)
-        if (digits[num % 10] == 1)
+    while (num) {
+        if (usedDigit[num % 10])
             return true;
-        else
-        {
-            digits[num % 10]++;
-            num /= 10;
-        }
+
+        usedDigit.set(num % 10);
+        num /= 10;
+    }
     return false;
 }
 
-void getPossibleAns(int num, int type)
+void initializePossibleAnswers(int num, int type)
 {
-    for (int i = 123; i <= 9876; i++)
-        if (checkRepeat(i))
+    for (int i = minPossibleValue; i <= maxPossibleValue; i++) {
+        if (hasRepeatingDigits(i))
             continue;
-        else if (getType(i, num) == type)
+
+        if (getType(i, num) == type)
             possibles.push_back(i);
+    }
 }
 
-double getVariance(int set[])
+double getVariance(const array<int, 41>& set)
 {
-    double mean;
+    const double mean = accumulate(TYPES.begin(), TYPES.end(), 0,
+                                  [&set](int acc, int type){ return acc + set[type]; })
+      / static_cast<double>(numTypes);
+
     double sum = 0;
-    for (int i = 0; i < 14; i++)
-        sum += set[TYPES[i]];
-    mean = sum / 14;
-    sum = 0;
-    for (int i = 0; i < 14; i++)
-        sum += (set[TYPES[i]] - mean) * (set[TYPES[i]] - mean);
-    return sum / 14;
+    for (const int type : TYPES) {
+        const int distanceFromMean = set[type] - mean;
+        sum += distanceFromMean * distanceFromMean;
+    }
+
+    return sum / static_cast<double>(numTypes-1);
 }
 
 int getBestNumber()
 {
-    double minVariance = 9999999;
-    double variance;
-    int bestNumber = 9999;
+    double minVariance = numeric_limits<double>::max();
+    // Could use std::optional<int> if using C++17
+    int bestNumber;
 
-    for (int i = 123; i <= 9876; i++)
+    for (int i = minPossibleValue; i <= maxPossibleValue; i++)
     {
-        if (checkRepeat(i))
+        if (hasRepeatingDigits(i))
             continue;
-        int typeCounts[41] = {0};
-        for (vector<int>::iterator it = possibles.begin(); it != possibles.end(); it++)
-            typeCounts[getType(i, *it)]++;
-        variance = getVariance(typeCounts);
+
+        array<int, 41> typeFrequency{};
+        for (const int possibility : possibles)
+            typeFrequency[getType(i, possibility)]++;
+        const double variance = getVariance(typeFrequency);
         if (variance < minVariance)
         {
             bestNumber = i;
@@ -160,25 +177,25 @@ int getBestNumber()
 
 void filterPossiblesAns(int guessNum, int type)
 {
-    vector<int> newPossibles;
-    for (vector<int>::iterator it = possibles.begin(); it != possibles.end(); it++)
-        if (getType(*it, guessNum) == type)
-            newPossibles.push_back(*it);
-    possibles = newPossibles;
+    // Erase-remove idiom performs an in-place filtering of elements according to a predicate function.
+    // No need for a copy as a result.
+    possibles.erase(remove_if(possibles.begin(), possibles.end(),
+                    [guessNum, type](const int possibility){ return getType(possibility, guessNum) != type; }),
+        possibles.end());
 }
 
 void startTest()
 {
     random_device rd;
     mt19937 generator(rd());
-    uniform_int_distribution<int> distribution(123, 9876);
+    uniform_int_distribution<int> distribution(minPossibleValue, maxPossibleValue);
     auto dice = std::bind(distribution, generator);
     int count = 0;
     int ans, firstGuess, round;
     for (int i = 0; i < TEST_ROUND; i++)
     {
-        while (checkRepeat(ans = dice()));
-        while (checkRepeat(firstGuess = dice()));
+        while (hasRepeatingDigits(ans = dice()));
+        while (hasRepeatingDigits(firstGuess = dice()));
         round = testGame(ans, firstGuess);
         count += round;
         cout << "(Ans, FirstGuess, Round) = (" << setfill('0') << setw(4) << ans << ", " << setfill('0') << setw(4) << firstGuess << ", " << round << ")" << endl;
@@ -191,7 +208,7 @@ int testGame(int ans, int guessNum)
 {
     int turn = 1;
     int type = getType(ans, guessNum);
-    getPossibleAns(guessNum, type);
+    initializePossibleAnswers(guessNum, type);
 
     while (type != 40)
     {
